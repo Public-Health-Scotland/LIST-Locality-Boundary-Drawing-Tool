@@ -23,15 +23,17 @@ shinyServer(function(input, output) {
     
     if (ext == "csv"){
       
-      read_excel(file$datapath, col_types = "text") %>%
-        dplyr::select(ProposedDZ,Proposed_Locality) %>%
-        na.omit()
+      read_csv(file$datapath) %>%
+        dplyr::select(dz2022,Proposed_Locality) %>%
+        na.omit() %>%
+        mutate_all(trimws,"both")
       
     } else{
       
       read_xlsx(file$datapath, sheet="New DZs", col_types = "text") %>%
-    dplyr::select(ProposedDZ,Proposed_Locality) %>%
-    na.omit()
+        dplyr::select(dz2022,Proposed_Locality) %>%
+        na.omit()%>%
+        mutate_all(trimws,"both")
       
     }
     
@@ -43,31 +45,38 @@ shinyServer(function(input, output) {
   
   # 3. Find New Locality Boundaries ----
   
+  proposed_locality_w_dz2022 <- reactive({
+    
+    dz2022_shapefiles %>%
+      right_join(locality_proposal(),by=c("dz2022"))
+    
+    
+  })
+  
   proposed_locality_boundaries <- reactive({
     
-    proposed_datazone_shapefiles %>%
-    right_join(locality_proposal(),by=c("ProposedDZ")) %>%
-    summarise(TotalPop=sum(TotalPop),
-              Shape_Area=sum(Shape_Area),
-              geometry = sf::st_union(geometry),
-              .by=c("Proposed_Locality"))
+    proposed_locality_w_dz2022() %>%
+      summarise(pop2022=sum(pop2022),
+                Shape_Area=sum(Shape_Area),
+                geometry = sf::st_union(geometry),
+                .by=c("Proposed_Locality"))
+    
   })
   
   # 4. Get Locality And HSCP Of Interest ----
   
-  localities_of_interest <- reactive({ 
+  localities_of_interest <- reactive({
     
-    locality_proposal() %>%
+    proposed_locality_w_dz2022() %>%
       pull(Proposed_Locality) %>%
-      unique() 
+      unique()
     
   })
   
   hscp_of_interest <- reactive({
     
-    current_locality_hscp_lookup %>%
-      filter(hscp_local %in% localities_of_interest()) %>%
-      pull(HSCP_name) %>%
+    proposed_locality_w_dz2022() %>%
+      pull(hscp2019name) %>%
       unique()
     
   })
@@ -76,60 +85,59 @@ shinyServer(function(input, output) {
   
   # 5. Shapefiles Of Interest ----
   
-  current_datazones_of_interest <- reactive({
+  dz2011_of_interest <- reactive({
     
-    current_datazone_shapefiles %>%
-      filter(HSCP_name %in% hscp_of_interest())
-    
-  })
-    
-    
-  
-  current_localities_of_interest <- reactive({
-    
-    current_locality_shapefiles %>%
-      filter(HSCP_name %in% hscp_of_interest())
+    dz2011_shapefiles %>%
+      filter(hscp2019name %in% hscp_of_interest())
     
   })
+    
   
-  current_IZ_of_interest <- reactive({
+  dz2011_IZ_of_interest <- reactive({
     
-    current_IZ_shapefiles %>%
-      filter(HSCP_name %in% hscp_of_interest())
+    iz2011_shapefiles %>%
+      filter(hscp2019name %in% hscp_of_interest())
     
-  })
+  })  
   
-  proposed_datazones_of_interest <- reactive({
-    
-    proposed_datazone_shapefiles %>%
-      filter(LAName %in% hscp_of_interest())
   
-  })
+  dz2011_localities_of_interest <- reactive({
     
-  proposed_IZ_of_interest <- reactive({
-    
-    proposed_IZ_shapefiles %>%
-      filter(LAName %in% hscp_of_interest())
+    hscp_locality2011_shapefiles %>%
+      filter(hscp2019name %in% hscp_of_interest())
     
   })
   
-  proposed_localities_of_interest <-reactive({ proposed_locality_boundaries() })
+  
+  dz2022_of_interest <- reactive({
+    
+    dz2022_shapefiles %>%
+      filter(hscp2019name %in% hscp_of_interest())
+  
+  })
+    
+  dz2022_IZ_of_interest <- reactive({
+    
+    iz2022_shapefiles %>%
+      filter(hscp2019name %in% hscp_of_interest())
+    
+  })
   
   # 6. Population Changes ----
   
   population_ests_proposed <- reactive({
     
-    proposed_localities_of_interest() %>%
-    dplyr::select(Locality=Proposed_Locality,proposed_population=TotalPop) %>%
+    proposed_locality_boundaries() %>%
+    dplyr::select(hscp_locality=Proposed_Locality,proposed_population=pop2022) %>%
     st_drop_geometry() %>%
     mutate(proposed_pop_perc=100*(proposed_population/sum(proposed_population)))
     
   })
   
-  population_ests_current <- reactive({
+  population_ests_2011 <- reactive({
     
-    current_localities_of_interest() %>%
-    dplyr::select(Locality=hscp_local,current_population=TotalPop) %>%
+    dz2011_localities_of_interest() %>%
+    dplyr::select(hscp_locality,current_population=pop2022) %>%
     st_drop_geometry() %>%
     mutate(current_pop_perc=100*(current_population/sum(current_population)))
   
@@ -137,32 +145,32 @@ shinyServer(function(input, output) {
   
   population_ests_wide_of_interest <- reactive({
     
-    population_ests_current() %>%
-    full_join(population_ests_proposed(),by="Locality")
+    population_ests_2011() %>%
+    full_join(population_ests_proposed(),by="hscp_locality")
     
   })
   
   population_ests_long_of_interest <- reactive({
     
     population_ests_wide_of_interest() %>%
-    pivot_longer(-"Locality",names_to="measure")
+    pivot_longer(-"hscp_locality",names_to="measure")
   
   })
   
   # 7. Area Changes ----
   
-  area_ests_current <- reactive({
+  area_ests_2011 <- reactive({
     
-    current_localities_of_interest() %>%
-    dplyr::select(Locality=hscp_local,current_shape_area=Shape_Area) %>%
+    dz2011_localities_of_interest() %>%
+    dplyr::select(hscp_locality,current_shape_area=Shape_Area) %>%
     st_drop_geometry() %>%
     mutate(current_area_perc=100*(current_shape_area/sum(current_shape_area)))
   })
     
   area_ests_proposed <- reactive({
     
-    proposed_localities_of_interest() %>%
-    dplyr::select(Locality=Proposed_Locality,proposed_shape_area=Shape_Area) %>%
+    proposed_locality_boundaries() %>%
+    dplyr::select(hscp_locality=Proposed_Locality,proposed_shape_area=Shape_Area) %>%
     st_drop_geometry() %>%
     mutate(proposed_area_perc=100*(proposed_shape_area/sum(proposed_shape_area)))
   
@@ -170,15 +178,15 @@ shinyServer(function(input, output) {
     
   area_ests_wide_of_interest <- reactive({
     
-    area_ests_current() %>%
-    full_join(area_ests_proposed(),by="Locality")
+    area_ests_2011() %>%
+    full_join(area_ests_proposed(),by="hscp_locality")
     
   })
     
   area_ests_long_of_interest <- reactive({
     
     area_ests_wide_of_interest() %>%
-    pivot_longer(-"Locality",names_to="measure")
+    pivot_longer(-"hscp_locality",names_to="measure")
   
   })
   
@@ -192,13 +200,13 @@ shinyServer(function(input, output) {
     
     locality <- localities_of_interest()[i]
     
-    proposed_shape <- proposed_localities_of_interest() %>%
+    proposed_shape <- proposed_locality_boundaries() %>%
       filter(Proposed_Locality == locality)
     
-    current_shape <- current_localities_of_interest() %>%
-      filter(hscp_local == locality) 
+    shape_2011 <- dz2011_localities_of_interest() %>%
+      filter(hscp_locality == locality) 
     
-    difference_in_shape <- st_sym_difference(current_shape$geometry,proposed_shape$geometry) %>%
+    difference_in_shape <- st_sym_difference(shape_2011$geometry,proposed_shape$geometry) %>%
       suppressWarnings() %>%
       suppressMessages()
     
@@ -233,11 +241,28 @@ shinyServer(function(input, output) {
     
     map_with_datazones <- base_map %>%
       
-      addPolygons(data=proposed_datazones_of_interest(),
-                  group ="Proposed DataZone Boundaries",
+      
+      addPolygons(data=dz2011_localities_of_interest(),
+                  group="2011 Locality Boundaries",
+                  color=phs_colors("phs-green")) %>%
+      
+      addPolygons(data=dz2011_of_interest(),
+                  group="2011 DataZone Boundaries",
+                  color=phs_colors("phs-blue")) %>%
+      
+      addPolygons(data=dz2011_IZ_of_interest(),
+                  group="2011 Intermediate Zone Boundaries",
+                  color=phs_colors("phs-graphite")) %>%
+      
+      addPolygons(data=dz2022_IZ_of_interest(),
+                  group="2022 Intermediate Zone Boundaries",
+                  color=phs_colors("phs-liberty")) %>%
+      
+      addPolygons(data=dz2022_of_interest(),
+                  group ="2022 DataZone Boundaries",
                   color=phs_colors("phs-magenta"),
-                  popup = ~ paste("Proposed Datazone: ", ProposedDZ),
-                  label = ~ lapply(paste("Proposed Datazone: ", ProposedDZ), 
+                  popup = ~ paste("Proposed Datazone: ", dz2022),
+                  label = ~ lapply(paste("Proposed Datazone: ", dz2022), 
                                    htmltools::HTML),
                   highlightOptions = highlightOptions(
                     color = "red",
@@ -245,24 +270,8 @@ shinyServer(function(input, output) {
                     bringToFront = TRUE
                   )) %>%
       
-      addPolygons(data=current_localities_of_interest(),
-                  group="Current Locality Boundaries",
-                  color=phs_colors("phs-green")) %>%
-      
-      addPolygons(data=current_datazones_of_interest(),
-                  group="Current DataZone Boundaries",
-                  color=phs_colors("phs-blue")) %>%
-      
-      addPolygons(data=current_IZ_of_interest(),
-                  group="Current Intermediate Zone Boundaries",
-                  color=phs_colors("phs-graphite")) %>%
-      
-      addPolygons(data=proposed_IZ_of_interest(),
-                  group="Proposed Intermediate Zone Boundaries",
-                  color=phs_colors("phs-liberty")) %>%
-      
-      addPolygons(data=proposed_localities_of_interest(),
-                  group="Proposed Locality Boundaries",
+      addPolygons(data=proposed_locality_boundaries(),
+                  group="Proposed Locality Boundaries (Based On 2022 DZ)",
                   color=phs_colors("phs-rust"),
                   popup = ~ paste("Proposed Locality: ", Proposed_Locality),
                   label = ~ lapply(paste("Proposed Locality: ", Proposed_Locality), 
@@ -284,12 +293,12 @@ shinyServer(function(input, output) {
       
       addLayersControl(
         # Groups will show in order they are set here
-        overlayGroups = c("Current DataZone Boundaries",
-                          "Proposed DataZone Boundaries",
-                          "Current Intermediate Zone Boundaries",
-                          "Proposed Intermediate Zone Boundaries",
-                          "Current Locality Boundaries",
-                          "Proposed Locality Boundaries",
+        overlayGroups = c("2011 DataZone Boundaries",
+                          "2022 DataZone Boundaries",
+                          "2011 Intermediate Zone Boundaries",
+                          "2022 Intermediate Zone Boundaries",
+                          "2011 Locality Boundaries",
+                          "Proposed Locality Boundaries (Based On 2022 DZ)",
                           "Differences Between Current and Proposed Locality Boundaries"),
         position = "topright",
         # set collapsed = FALSE so that controls always displayed
@@ -311,8 +320,9 @@ shinyServer(function(input, output) {
              proposed_area_perc=paste0(round(proposed_area_perc,1),"%")) %>%
       mutate(current_area_perc=ifelse(current_area_perc == "NA%",NA,current_area_perc),
              proposed_area_perc=ifelse(proposed_area_perc == "NA%",NA,proposed_area_perc)) %>%
-      rename("Current Surface Area"="current_shape_area",
-             "Current Percentage Of Surface Area"="current_area_perc",
+      rename("Locality" = "hscp_locality",
+             "2011 Locality: Surface Area"="current_shape_area",
+             "2011 Locality: Percentage Of Surface Area"="current_area_perc",
              "Proposed Surface Area"="proposed_shape_area",
              "Proposed Percentage Of Surface Area"="proposed_area_perc") %>%
       DT::datatable()
@@ -327,8 +337,9 @@ shinyServer(function(input, output) {
              proposed_pop_perc=paste0(round(proposed_pop_perc,1),"%")) %>%
       mutate(current_pop_perc=ifelse(current_pop_perc == "NA%",NA,current_pop_perc),
              proposed_pop_perc=ifelse(proposed_pop_perc == "NA%",NA,proposed_pop_perc)) %>%
-      rename("Current Population"="current_population",
-             "Current Percentage Of Population"="current_pop_perc",
+      rename("Locality" = "hscp_locality",
+             "2011 Locality: Population"="current_population",
+             "2011 Locality: Percentage Of Population"="current_pop_perc",
              "Proposed Population"="proposed_population",
              "Proposed Percentage Of Population"="proposed_pop_perc") %>%
       DT::datatable()
