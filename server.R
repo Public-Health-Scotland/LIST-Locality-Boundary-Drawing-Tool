@@ -30,7 +30,7 @@ shinyServer(function(input, output) {
       
     } else{
       
-      read_xlsx(file$datapath, sheet="New DZs", col_types = "text") %>%
+      read_xlsx(file$datapath, sheet="Input Sheet", col_types = "text") %>%
         dplyr::select(dz2022,Proposed_Locality) %>%
         na.omit()%>%
         mutate_all(trimws,"both")
@@ -261,8 +261,8 @@ shinyServer(function(input, output) {
       addPolygons(data=dz2022_of_interest(),
                   group ="2022 DataZone Boundaries",
                   color=phs_colors("phs-magenta"),
-                  popup = ~ paste("Proposed Datazone: ", dz2022),
-                  label = ~ lapply(paste("Proposed Datazone: ", dz2022), 
+                  popup = ~ paste("2022 Datazone: ", dz2022),
+                  label = ~ lapply(paste("2022 Datazone: ", dz2022), 
                                    htmltools::HTML),
                   highlightOptions = highlightOptions(
                     color = "red",
