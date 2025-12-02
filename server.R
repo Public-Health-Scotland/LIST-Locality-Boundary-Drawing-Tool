@@ -314,8 +314,8 @@ shinyServer(function(input, output) {
   output$area_changes <- renderDT({
     
     area_ests_wide_of_interest() %>%
-      mutate(current_shape_area=round(current_shape_area),
-             proposed_shape_area=round(proposed_shape_area)) %>%
+      mutate(current_shape_area=shape_areas_formatting(current_shape_area),
+             proposed_shape_area=shape_areas_formatting(proposed_shape_area)) %>%
       mutate(current_area_perc=paste0(round(current_area_perc,1),"%"),
              proposed_area_perc=paste0(round(proposed_area_perc,1),"%")) %>%
       mutate(current_area_perc=ifelse(current_area_perc == "NA%",NA,current_area_perc),
@@ -333,6 +333,10 @@ shinyServer(function(input, output) {
   output$population_changes <- renderDT({
     
     population_ests_wide_of_interest() %>%
+      mutate(current_population=prettyNum(current_population,big.mark=","),
+             proposed_population=prettyNum(proposed_population,big.mark=",")) %>%
+      mutate(current_population=gsub("NA","",current_population),
+             proposed_population=gsub("NA","",proposed_population)) %>%
       mutate(current_pop_perc=paste0(round(current_pop_perc,1),"%"),
              proposed_pop_perc=paste0(round(proposed_pop_perc,1),"%")) %>%
       mutate(current_pop_perc=ifelse(current_pop_perc == "NA%",NA,current_pop_perc),

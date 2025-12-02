@@ -80,4 +80,20 @@ hscp_locality2011_shapefiles <- dz2011_shapefiles %>%
     
   )
 
+# 3. Format Shape Area ----
+
+shape_areas_formatting <- function(shape_areas){
+  
+  shape_areas %>% 
+    round() %>% 
+    prettyNum(big.mark=",") %>%
+    str_split(" \\[") %>%
+    lapply(FUN=first) %>%
+    unlist() %>%
+    gsub("NA","",.)
+  
+  
+}
+
+
 
