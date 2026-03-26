@@ -14,8 +14,8 @@ load_2022_dz <- function(){
     filter(correct_files) %>%
     mutate(year=map_chr(str_extract_all(filename,"\\(?[0-9]+\\)?"),1),
            file_no = map_chr(str_extract_all(filename,"\\(?[0-9]+\\)?"),2)) %>%
-    filter(year == max(year),
-           file_no == max(file_no)) %>%
+    filter(year == max(year)) %>%
+    filter(file_no == max(file_no)) %>%
     pull(filename) %>%
     readRDS() %>%
     summarise(

@@ -1,6 +1,8 @@
 
 load_2011_dz <- function(){
   
+  lookups_dir <- path("/conf/linkage/output/lookups/Unicode")
+  
   dz2011_shapefiles_dir <- path(lookups_dir, "Geography/Shapefiles/")
   
   PCD_dir <- path(lookups_dir,"Geography/Scottish Postcode Directory/")
@@ -14,8 +16,8 @@ load_2011_dz <- function(){
     filter(correct_files) %>%
     mutate(year=map_chr(str_extract_all(filename,"\\(?[0-9]+\\)?"),1),
            file_no = map_chr(str_extract_all(filename,"\\(?[0-9]+\\)?"),2)) %>%
-    filter(year == max(year),
-           file_no == max(file_no)) %>%
+    filter(year == max(year)) %>%
+    filter(file_no == max(file_no)) %>%
     pull(filename) %>%
     readRDS() %>%
     summarise(
