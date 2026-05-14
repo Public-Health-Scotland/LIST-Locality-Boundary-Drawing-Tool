@@ -5,8 +5,8 @@ load_2022_dz <- function(){
   datazone_shapefiles_dir <- path(lookups_dir, "Geography/Shapefiles/")
   PCD_dir <- path(lookups_dir,"Geography/Scottish Postcode Directory/")
   
-  dz2022_sf <- read_sf(path(datazone_shapefiles_dir,"Data Zone Boundaries 2022","SG_DataZoneBdry_2022_MHW.shp")) %>%
-    dplyr::select(dz2022=DZCode,Shape_Area)
+  dz2022_sf <- read_sf(path(datazone_shapefiles_dir,"Data Zone Boundaries 2022","SG_DataZone_Bdry_2022.shp")) %>%
+    dplyr::select(dz2022=dzcode,Shape_Area=st_area_sh)
   
   dz2022_info_lookup <- list.files(PCD_dir,full.names = TRUE) %>%
     data.frame(filename=.) %>%
