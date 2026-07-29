@@ -1,4 +1,3 @@
-
 library(shiny)
 library(flexdashboard)
 library(shinydashboard)
@@ -13,6 +12,7 @@ library(phsstyles)
 library(shinyWidgets)
 library(sf)
 library(fs)
+library(phslookups)
 
 # 0. Fix Geometry Options
 
@@ -34,36 +34,36 @@ source("Data Load Functions/Load 2022 DZ.R")
 ### 2.1.1 Data Zones ----
 
 dz2011_shapefiles <- load_2011_dz() %>%
-  st_transform(4326) %>%
-  mutate(hscp2019name=ifelse(hscp2019name == "Na h-Eileanan Siar","Western Isles",hscp2019name)) %>%
-  mutate(hscp2019name=ifelse(hscp2019name %in% c("Clackmannanshire","Stirling"),
-                             "Clackmannanshire and Stirling",hscp2019name)) %>%
-  mutate(hscp2019name=ifelse(hscp2019name == "City Of Edinburgh","Edinburgh",hscp2019name))
+  mutate(hscp2019name = ifelse(hscp2019name == "Na h-Eileanan Siar", "Western Isles", hscp2019name)) %>%
+  mutate(hscp2019name = ifelse(hscp2019name %in% c("Clackmannanshire", "Stirling"),
+    "Clackmannanshire and Stirling", hscp2019name
+  )) %>%
+  mutate(hscp2019name = ifelse(hscp2019name == "City Of Edinburgh", "Edinburgh", hscp2019name))
 
 dz2022_shapefiles <- load_2022_dz() %>%
-  st_transform(4326) %>%
-  mutate(hscp2019name=ifelse(hscp2019name == "Na h-Eileanan Siar","Western Isles",hscp2019name)) %>%
-  mutate(hscp2019name=ifelse(hscp2019name %in% c("Clackmannanshire","Stirling"),
-                             "Clackmannanshire and Stirling",hscp2019name)) %>%
-  mutate(hscp2019name=ifelse(hscp2019name == "City Of Edinburgh","Edinburgh",hscp2019name))
+  mutate(hscp2019name = ifelse(hscp2019name == "Na h-Eileanan Siar", "Western Isles", hscp2019name)) %>%
+  mutate(hscp2019name = ifelse(hscp2019name %in% c("Clackmannanshire", "Stirling"),
+    "Clackmannanshire and Stirling", hscp2019name
+  )) %>%
+  mutate(hscp2019name = ifelse(hscp2019name == "City Of Edinburgh", "Edinburgh", hscp2019name))
 
 
 ### 2.1.3. Intermediate Zones ----
 
 iz2011_shapefiles <- dz2011_shapefiles %>%
   summarise(
-    pop2022=sum(pop2022),
-    Shape_Area=sum(Shape_Area),
+    pop2022 = sum(pop2022),
+    Shape_Area = sum(Shape_Area),
     geometry = sf::st_union(geometry),
-    .by=c("intzone2011","hscp_locality","hscp2019name")
-  ) 
+    .by = c("intzone2011", "hscp_locality", "hscp2019name")
+  )
 
 iz2022_shapefiles <- dz2022_shapefiles %>%
   summarise(
-    pop2022=sum(pop2022),
-    Shape_Area=sum(Shape_Area),
+    pop2022 = sum(pop2022),
+    Shape_Area = sum(Shape_Area),
     geometry = sf::st_union(geometry),
-    .by=-c("dz2022","dz2022name","pop2022","Shape_Area")
+    .by = -c("dz2022", "dz2022name", "pop2022", "Shape_Area")
   ) %>%
   suppressWarnings() %>%
   suppressMessages()
@@ -72,28 +72,20 @@ iz2022_shapefiles <- dz2022_shapefiles %>%
 
 hscp_locality2011_shapefiles <- dz2011_shapefiles %>%
   summarise(
-    
     pop2022 = sum(pop2022),
-    Shape_Area=sum(Shape_Area),
-    geometry=st_union(geometry),
-    .by=-c("intzone2011","dz2011","Shape_Area","pop2022","geometry")
-    
+    Shape_Area = sum(Shape_Area),
+    geometry = st_union(geometry),
+    .by = -c("intzone2011", "dz2011", "Shape_Area", "pop2022", "geometry")
   )
 
 # 3. Format Shape Area ----
 
-shape_areas_formatting <- function(shape_areas){
-  
-  shape_areas %>% 
-    round() %>% 
-    prettyNum(big.mark=",") %>%
+shape_areas_formatting <- function(shape_areas) {
+  shape_areas %>%
+    round() %>%
+    prettyNum(big.mark = ",") %>%
     str_split(" \\[") %>%
-    lapply(FUN=first) %>%
+    lapply(FUN = first) %>%
     unlist() %>%
-    gsub("NA","",.)
-  
-  
+    gsub("NA", "", .)
 }
-
-
-
